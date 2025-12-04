@@ -1,6 +1,6 @@
 use minecraft_protocol::decoder::Decoder;
 use minecraft_protocol::error::DecodeError;
-use minecraft_protocol::version::{v1_16_3, v1_17};
+use minecraft_protocol::version::{v1_16_3, v1_17, v1_20_5, v1_21, v1_21_2, v1_21_4};
 use nbt::CompoundTag;
 #[cfg(feature = "lobby")]
 use tokio::net::tcp::WriteHalf;
@@ -33,16 +33,36 @@ pub struct JoinGameData {
     pub enable_respawn_screen: Option<bool>,
     pub is_debug: Option<bool>,
     pub is_flat: Option<bool>,
+    // New fields
+    pub simulation_distance: Option<i32>,
+    pub do_limited_crafting: Option<bool>,
+    pub dimension_type: Option<i32>,
+    pub dimension_name: Option<String>,
+    pub portal_cooldown: Option<i32>,
 }
 
 impl JoinGameData {
     /// Extract join game data from given packet.
     pub fn from_packet(client_info: &ClientInfo, packet: RawPacket) -> Result<Self, DecodeError> {
+        // Minecraft 1.20.2 is Protocol 764.
         match client_info.protocol() {
             Some(p) if p < v1_17::PROTOCOL => {
                 Ok(v1_16_3::game::JoinGame::decode(&mut packet.data.as_slice())?.into())
             }
-            _ => Ok(v1_17::game::JoinGame::decode(&mut packet.data.as_slice())?.into()),
+            Some(p) if p < 764 => { // 1.20.2
+                Ok(v1_17::game::JoinGame::decode(&mut packet.data.as_slice())?.into())
+            }
+            Some(p) if p < v1_21::PROTOCOL => {
+                // 1.20.2 (764), 1.20.3/4 (765), 1.20.5/6 (766)
+                Ok(v1_20_5::game::JoinGame::decode(&mut packet.data.as_slice())?.into())
+            }
+            Some(p) if p < v1_21_2::PROTOCOL => {
+                Ok(v1_21::game::JoinGame::decode(&mut packet.data.as_slice())?.into())
+            }
+            Some(p) if p < v1_21_4::PROTOCOL => {
+                Ok(v1_21_2::game::JoinGame::decode(&mut packet.data.as_slice())?.into())
+            }
+            _ => Ok(v1_21_4::game::JoinGame::decode(&mut packet.data.as_slice())?.into()),
         }
     }
 }
@@ -64,6 +84,11 @@ impl From<v1_16_3::game::JoinGame> for JoinGameData {
             enable_respawn_screen: Some(join_game.enable_respawn_screen),
             is_debug: Some(join_game.is_debug),
             is_flat: Some(join_game.is_flat),
+            simulation_distance: None,
+            do_limited_crafting: None,
+            dimension_type: None,
+            dimension_name: None,
+            portal_cooldown: None,
         }
     }
 }
@@ -85,6 +110,115 @@ impl From<v1_17::game::JoinGame> for JoinGameData {
             enable_respawn_screen: Some(join_game.enable_respawn_screen),
             is_debug: Some(join_game.is_debug),
             is_flat: Some(join_game.is_flat),
+            simulation_distance: None,
+            do_limited_crafting: None,
+            dimension_type: None,
+            dimension_name: None,
+            portal_cooldown: None,
+        }
+    }
+}
+
+impl From<v1_20_5::game::JoinGame> for JoinGameData {
+    fn from(join_game: v1_20_5::game::JoinGame) -> Self {
+        Self {
+            hardcore: Some(join_game.is_hardcore),
+            game_mode: Some(join_game.game_mode),
+            previous_game_mode: Some(join_game.previous_game_mode),
+            world_names: Some(join_game.dimension_names.clone()),
+            dimension: None, // Missing
+            dimension_codec: None, // Missing
+            world_name: Some(join_game.dimension_name.clone()),
+            hashed_seed: Some(join_game.hashed_seed),
+            max_players: Some(join_game.max_players),
+            view_distance: Some(join_game.view_distance),
+            reduced_debug_info: Some(join_game.reduced_debug_info),
+            enable_respawn_screen: Some(join_game.enable_respawn_screen),
+            is_debug: Some(join_game.is_debug),
+            is_flat: Some(join_game.is_flat),
+            simulation_distance: Some(join_game.simulation_distance),
+            do_limited_crafting: Some(join_game.do_limited_crafting),
+            dimension_type: Some(join_game.dimension_type),
+            dimension_name: Some(join_game.dimension_name),
+            portal_cooldown: Some(join_game.portal_cooldown),
+        }
+    }
+}
+
+impl From<v1_21::game::JoinGame> for JoinGameData {
+    fn from(join_game: v1_21::game::JoinGame) -> Self {
+        Self {
+            hardcore: Some(join_game.is_hardcore),
+            game_mode: Some(join_game.game_mode),
+            previous_game_mode: Some(join_game.previous_game_mode),
+            world_names: Some(join_game.dimension_names.clone()),
+            dimension: None,
+            dimension_codec: None,
+            world_name: Some(join_game.dimension_name.clone()),
+            hashed_seed: Some(join_game.hashed_seed),
+            max_players: Some(join_game.max_players),
+            view_distance: Some(join_game.view_distance),
+            reduced_debug_info: Some(join_game.reduced_debug_info),
+            enable_respawn_screen: Some(join_game.enable_respawn_screen),
+            is_debug: Some(join_game.is_debug),
+            is_flat: Some(join_game.is_flat),
+            simulation_distance: Some(join_game.simulation_distance),
+            do_limited_crafting: Some(join_game.do_limited_crafting),
+            dimension_type: Some(join_game.dimension_type),
+            dimension_name: Some(join_game.dimension_name),
+            portal_cooldown: Some(join_game.portal_cooldown),
+        }
+    }
+}
+
+impl From<v1_21_2::game::JoinGame> for JoinGameData {
+    fn from(join_game: v1_21_2::game::JoinGame) -> Self {
+        Self {
+            hardcore: Some(join_game.is_hardcore),
+            game_mode: Some(join_game.game_mode),
+            previous_game_mode: Some(join_game.previous_game_mode),
+            world_names: Some(join_game.dimension_names.clone()),
+            dimension: None,
+            dimension_codec: None,
+            world_name: Some(join_game.dimension_name.clone()),
+            hashed_seed: Some(join_game.hashed_seed),
+            max_players: Some(join_game.max_players),
+            view_distance: Some(join_game.view_distance),
+            reduced_debug_info: Some(join_game.reduced_debug_info),
+            enable_respawn_screen: Some(join_game.enable_respawn_screen),
+            is_debug: Some(join_game.is_debug),
+            is_flat: Some(join_game.is_flat),
+            simulation_distance: Some(join_game.simulation_distance),
+            do_limited_crafting: Some(join_game.do_limited_crafting),
+            dimension_type: Some(join_game.dimension_type),
+            dimension_name: Some(join_game.dimension_name),
+            portal_cooldown: Some(join_game.portal_cooldown),
+        }
+    }
+}
+
+impl From<v1_21_4::game::JoinGame> for JoinGameData {
+    fn from(join_game: v1_21_4::game::JoinGame) -> Self {
+        Self {
+            hardcore: Some(join_game.is_hardcore),
+            game_mode: Some(join_game.game_mode),
+            previous_game_mode: Some(join_game.previous_game_mode),
+            world_names: Some(join_game.dimension_names.clone()),
+            dimension: None,
+            dimension_codec: None,
+            world_name: Some(join_game.dimension_name.clone()),
+            hashed_seed: Some(join_game.hashed_seed),
+            max_players: Some(join_game.max_players),
+            view_distance: Some(join_game.view_distance),
+            reduced_debug_info: Some(join_game.reduced_debug_info),
+            enable_respawn_screen: Some(join_game.enable_respawn_screen),
+            is_debug: Some(join_game.is_debug),
+            is_flat: Some(join_game.is_flat),
+            simulation_distance: Some(join_game.simulation_distance),
+            do_limited_crafting: Some(join_game.do_limited_crafting),
+            dimension_type: Some(join_game.dimension_type),
+            dimension_name: Some(join_game.dimension_name),
+            portal_cooldown: Some(join_game.portal_cooldown),
         }
     }
 }
@@ -93,7 +227,11 @@ impl From<v1_17::game::JoinGame> for JoinGameData {
 pub fn is_packet(client_info: &ClientInfo, packet_id: u8) -> bool {
     match client_info.protocol() {
         Some(p) if p < v1_17::PROTOCOL => packet_id == v1_16_3::game::JoinGame::PACKET_ID,
-        _ => packet_id == v1_17::game::JoinGame::PACKET_ID,
+        Some(p) if p < 764 => packet_id == v1_17::game::JoinGame::PACKET_ID, // 1.20.2
+        Some(p) if p < v1_21::PROTOCOL => packet_id == v1_20_5::game::JoinGame::PACKET_ID,
+        Some(p) if p < v1_21_2::PROTOCOL => packet_id == v1_21::game::JoinGame::PACKET_ID,
+        Some(p) if p < v1_21_4::PROTOCOL => packet_id == v1_21_2::game::JoinGame::PACKET_ID,
+        _ => packet_id == v1_21_4::game::JoinGame::PACKET_ID,
     }
 }
 
@@ -155,8 +293,6 @@ pub async fn lobby_send(
         Some(p) if p < v1_17::PROTOCOL => {
             packet::write_packet(
                 v1_16_3::game::JoinGame {
-                    // Player ID must be unique, if it collides with another server entity ID the player gets
-                    // in a weird state and cannot move
                     entity_id: 0,
                     hardcore,
                     game_mode: 3,
@@ -178,11 +314,9 @@ pub async fn lobby_send(
             )
             .await
         }
-        _ => {
+        Some(p) if p < 764 => { // 1.20.2
             packet::write_packet(
                 v1_17::game::JoinGame {
-                    // Player ID must be unique, if it collides with another server entity ID the player gets
-                    // in a weird state and cannot move
                     entity_id: 0,
                     hardcore,
                     game_mode: 3,
@@ -198,6 +332,114 @@ pub async fn lobby_send(
                     enable_respawn_screen,
                     is_debug,
                     is_flat,
+                },
+                client,
+                writer,
+            )
+            .await
+        }
+        Some(p) if p < v1_21::PROTOCOL => {
+            packet::write_packet(
+                v1_20_5::game::JoinGame {
+                    entity_id: 0,
+                    is_hardcore: hardcore,
+                    game_mode: 3,
+                    previous_game_mode: 255, // -1 in u8
+                    dimension_names: world_names,
+                    dimension_type: 0,
+                    dimension_name: "lazymc:lobby".into(),
+                    hashed_seed: 0,
+                    max_players,
+                    view_distance,
+                    simulation_distance: view_distance,
+                    reduced_debug_info,
+                    enable_respawn_screen,
+                    is_debug,
+                    is_flat,
+                    do_limited_crafting: false,
+                    death_location: v1_20_5::game::OptionalGlobalPos(None),
+                    portal_cooldown: 0,
+                },
+                client,
+                writer,
+            )
+            .await
+        }
+        Some(p) if p < v1_21_2::PROTOCOL => {
+            packet::write_packet(
+                v1_21::game::JoinGame {
+                    entity_id: 0,
+                    is_hardcore: hardcore,
+                    game_mode: 3,
+                    previous_game_mode: 255,
+                    dimension_names: world_names,
+                    dimension_type: 0,
+                    dimension_name: "lazymc:lobby".into(),
+                    hashed_seed: 0,
+                    max_players,
+                    view_distance,
+                    simulation_distance: view_distance,
+                    reduced_debug_info,
+                    enable_respawn_screen,
+                    is_debug,
+                    is_flat,
+                    do_limited_crafting: false,
+                    death_location: v1_21::game::OptionalGlobalPos(None),
+                    portal_cooldown: 0,
+                },
+                client,
+                writer,
+            )
+            .await
+        }
+        Some(p) if p < v1_21_4::PROTOCOL => {
+            packet::write_packet(
+                v1_21_2::game::JoinGame {
+                    entity_id: 0,
+                    is_hardcore: hardcore,
+                    game_mode: 3,
+                    previous_game_mode: 255,
+                    dimension_names: world_names,
+                    dimension_type: 0,
+                    dimension_name: "lazymc:lobby".into(),
+                    hashed_seed: 0,
+                    max_players,
+                    view_distance,
+                    simulation_distance: view_distance,
+                    reduced_debug_info,
+                    enable_respawn_screen,
+                    is_debug,
+                    is_flat,
+                    do_limited_crafting: false,
+                    death_location: v1_21_2::game::OptionalGlobalPos(None),
+                    portal_cooldown: 0,
+                },
+                client,
+                writer,
+            )
+            .await
+        }
+        _ => {
+            packet::write_packet(
+                v1_21_4::game::JoinGame {
+                    entity_id: 0,
+                    is_hardcore: hardcore,
+                    game_mode: 3,
+                    previous_game_mode: 255,
+                    dimension_names: world_names,
+                    dimension_type: 0,
+                    dimension_name: "lazymc:lobby".into(),
+                    hashed_seed: 0,
+                    max_players,
+                    view_distance,
+                    simulation_distance: view_distance,
+                    reduced_debug_info,
+                    enable_respawn_screen,
+                    is_debug,
+                    is_flat,
+                    do_limited_crafting: false,
+                    death_location: v1_21_4::game::OptionalGlobalPos(None),
+                    portal_cooldown: 0,
                 },
                 client,
                 writer,

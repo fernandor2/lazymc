@@ -1,0 +1,19 @@
+[package]
+name = "minecraft-protocol"
+version = "0.1.0"
+authors = ["vagola <vladislavs.golubs@yandex.ru>"]
+edition = "2018"
+description = "Library for decoding and encoding Minecraft packets"
+license = "MIT"
+homepage = "https://github.com/eihwaz/minecraft-protocol"
+repository = "https://github.com/eihwaz/minecraft-protocol"
+keywords = ["minecraft", "protocol", "packet", "io"]
+readme = "../README.md"
+
+[dependencies]
+minecraft-protocol-derive = { version = "0.0.0", path = "../protocol-derive" }
+byteorder = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.7", features = ["v4", "serde"] }
+named-binary-tag = "0.6"
